@@ -42,8 +42,8 @@
   shell: set -o pipefail && oc get pods -l app=keycloak -l component=keycloak -n {{ demo_project }} | grep keycloak-0
   register: readiness
   until: "'1/1' in readiness.stdout"
-  retries: 20
-  delay: 15
+  retries: 30
+  delay: 30
   args:
     executable: /bin/bash
 
