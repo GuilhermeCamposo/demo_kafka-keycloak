@@ -125,3 +125,7 @@ Creating a topic:
 Listing available topics:
 
       bin/kafka-topics.sh --bootstrap-server my-cluster-kafka-bootstrap:9093 --command-config /tmp/alice.properties --list
+
+== User federation with LDAP
+
+      

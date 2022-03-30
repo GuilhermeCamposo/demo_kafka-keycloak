@@ -1,0 +1,9 @@
+- name: Evaluate OpenLDAP Instance
+  k8s:
+    state: present
+    resource_definition: "{{ lookup('template', 'deployment.yaml.j2') }}"
+
+- name: Evaluate OpenLDAP Service
+  k8s:
+    state: present
+    resource_definition: "{{ lookup('template', 'service.yaml.j2') }}"

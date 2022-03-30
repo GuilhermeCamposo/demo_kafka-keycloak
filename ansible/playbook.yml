@@ -56,3 +56,7 @@
     - name: Include Apps role
       include_role:
         name: apps
+
+    - name: Include LDAP role
+      include_role:
+        name: ldap

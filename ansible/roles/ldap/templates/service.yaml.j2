@@ -1,0 +1,29 @@
+kind: Service
+apiVersion: v1
+metadata:
+  name: openldap
+  namespace: '{{ demo_project }}'
+  labels:
+    app: openldap
+    app.kubernetes.io/component: openldap
+    app.kubernetes.io/instance: openldap
+    app.kubernetes.io/name: openldap
+    app.kubernetes.io/part-of: docker-app
+    app.openshift.io/runtime-version: latest
+spec:
+  ports:
+    - name: 1389-tcp
+      protocol: TCP
+      port: 1389
+      targetPort: 1389
+    - name: 1636-tcp
+      protocol: TCP
+      port: 1636
+      targetPort: 1636
+  internalTrafficPolicy: Cluster
+  type: ClusterIP
+  ipFamilyPolicy: SingleStack
+  sessionAffinity: None
+  selector:
+    app: openldap
+    deploymentconfig: openldap
