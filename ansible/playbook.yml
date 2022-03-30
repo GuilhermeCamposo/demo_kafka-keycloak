@@ -1,0 +1,58 @@
+- hosts: localhost
+  name: Install kafka-keycloak demo
+  vars:
+    delete_demo: false
+    demo_project: kafka-keycloak
+    truststore_password: storepass
+    insecure_skip_tls_verify: true
+  tasks:
+
+    - name: Define domain
+      set_fact:
+        domain : "{{ server | regex_replace('https://api.') | regex_replace(':6443') }}"
+
+    - name: Login as super user with token on OpenShift 4
+      command: "oc login --token={{ token }}  --server={{ server }} --insecure-skip-tls-verify={{ insecure_skip_tls_verify }}"
+      when:
+       - token is defined
+       - server is defined
+      ignore_errors: no
+
+    - name: Evaluate {{ demo_project }} Namespace
+      when: not delete_demo
+      k8s:
+        state: present
+        kind: Project
+        api_version: project.openshift.io/v1
+        definition:
+          metadata:
+            name: "{{ demo_project }}"
+            annotations:
+              openshift.io/description: "Namespace used in Kafka-keycloak Demo"
+              openshift.io/display-name: "Kafka-keycloakProject"
+
+    - name: Evaluate Operator Group
+      when: not delete_demo
+      k8s:
+        state: present
+        api_version: operators.coreos.com/v1
+        kind: OperatorGroup
+        definition:
+          metadata:
+            name: '{{ demo_project }}-operatorgroup'
+            namespace: '{{ demo_project}}'
+          spec:
+            targetNamespaces:
+            - '{{ demo_project }}'
+
+    - name: Include SSO role
+      include_role:
+        name: sso
+
+    - name: Include Kafka role
+      include_role:
+        name: kafka
+
+    - name: Include Apps role
+      include_role:
+        name: apps

@@ -1,0 +1,103 @@
+- name: Evaluate SSO Subscription
+  k8s:
+    state: present
+    kind: Subscription
+    api_version: operators.coreos.com/v1alpha1
+    definition:
+      metadata:
+        name: rhsso-operator
+        namespace: '{{ demo_project }}'
+      spec:
+        channel: stable
+        installPlanApproval: Automatic
+        name: rhsso-operator
+        source: redhat-operators
+        sourceNamespace: openshift-marketplace
+        startingCSV: rhsso-operator.7.5.1-opr-010
+
+- name: Wait SSO Subscription Completion
+  shell: set -o pipefail && oc get csv -n {{ demo_project }} | grep rhsso-operator
+  register: install_status
+  until: "'Succeeded' in install_status.stdout"
+  retries: 20
+  delay: 15
+  args:
+    executable: /bin/bash
+
+- name: Evaluate SSO Instance
+  k8s:
+    state: present
+    kind: Keycloak
+    api_version: keycloak.org/v1alpha1
+    definition:
+      metadata:
+        name: example-keycloak
+        namespace: '{{ demo_project }}'
+      spec:
+        externalAccess:
+          enabled: true
+        instances: 1
+
+- name: Wait SSO to be ready
+  shell: set -o pipefail && oc get pods -l app=keycloak -l component=keycloak -n {{ demo_project }} | grep keycloak-0
+  register: readiness
+  until: "'1/1' in readiness.stdout"
+  retries: 20
+  delay: 15
+  args:
+    executable: /bin/bash
+
+- name: Get SSO secret
+  k8s_info:
+    kind: Secret
+    name:  credential-example-keycloak
+    namespace: '{{ demo_project }}'
+    api_version: v1
+  register: r_credential
+  until:
+    - r_credential.resources is defined
+    - r_credential.resources[0] is defined
+  retries: 10
+  delay: 15
+
+- name: Set admin password
+  set_fact:
+    rhsso_admin_password: '{{ r_credential.resources[0].data.ADMIN_PASSWORD | b64decode }}'
+
+- name: Set admin username
+  set_fact:
+    rhsso_admin_username: '{{ r_credential.resources[0].data.ADMIN_USERNAME | b64decode }}'
+
+- name: Set SSO host
+  set_fact:
+    sso_host: 'keycloak-{{ demo_project }}.apps.{{ domain }}'
+
+- name: Get SSO admin token
+  uri:
+    url: 'https://{{ sso_host }}/auth/realms/master/protocol/openid-connect/token'
+    validate_certs: false
+    method: POST
+    body:
+      username: "{{rhsso_admin_username}}"
+      password: "{{rhsso_admin_password}}"
+      grant_type: "password"
+      client_id: "admin-cli"
+    body_format: form-urlencoded
+    status_code: 200,201,204
+  register: rhsso_admin_token
+  retries: 120
+  delay: 10
+  until: rhsso_admin_token.status in [200, 201, 204]
+
+- name: Create Authz Realm
+  uri:
+    url: 'https://{{ sso_host }}/auth/admin/realms'
+    method: POST
+    body_format: json
+    headers:
+      Content-Type: "application/json"
+      Authorization: "Bearer {{rhsso_admin_token.json.access_token}}"
+    body: "{{ lookup('file', 'kafka-authz-realm.json') }}"
+    return_content: yes
+    validate_certs: no
+    status_code: 201

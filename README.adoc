@@ -1,0 +1,20 @@
+== Install The Demo Using Ansible
+
+=== Parameters
+
+[options="header"]
+|=======================
+| Parameter | Example Value                                      | Definition
+| token | sha256~vFanQbthlPKfsaldJT3bdLXIyEkd7ypO_XPygY1DNtQ | access token for a user with cluster-admin privileges
+| server    | https://api.mycluster.opentlc.com:6443      | OpenShift cluster API URL
+|=======================
+
+=== Running the playbook
+
+    token=REPLACE_ME
+    server=REPLACE_ME
+    ansible-playbook -e token=${token} -e server=${server} playbook.yml
+
+=== Deploying the applications
+
+    mvn clean package -Dquarkus.kubernetes.deploy=true

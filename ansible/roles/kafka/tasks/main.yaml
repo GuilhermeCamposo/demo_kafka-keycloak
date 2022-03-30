@@ -1,0 +1,54 @@
+- name: Evaluate Streams Subscription
+  k8s:
+    state: present
+    kind: Subscription
+    api_version: operators.coreos.com/v1alpha1
+    definition:
+      metadata:
+        name: amq-streams
+        namespace: '{{ demo_project }}'
+      spec:
+        channel: stable
+        installPlanApproval: Automatic
+        name: amq-streams
+        source: redhat-operators
+        sourceNamespace: openshift-marketplace
+        startingCSV: amqstreams.v2.0.1-2
+
+- name: Wait Streams Subscription Completion
+  shell: set -o pipefail && oc get csv -n {{ demo_project }} | grep amqstreams
+  register: install_status
+  until: "'Succeeded' in install_status.stdout"
+  retries: 20
+  delay: 15
+  args:
+    executable: /bin/bash
+
+- name: Get SSO certificate
+  shell: set -o pipefail && echo "Q" | openssl s_client -showcerts -connect {{ sso_host }}:443 2>/dev/null | awk '/BEGIN CERTIFICATE/,/END CERTIFICATE/ { print $0 } ' > /tmp/sso.crt
+  retries: 20
+  delay: 15
+  args:
+    executable: /bin/bash
+
+- name: Create SSO secret for Kafka
+  shell: set -o pipefail && oc create secret generic oauth-server-cert --from-file=/tmp/sso.crt -n {{ demo_project }}
+  retries: 20
+  delay: 15
+  args:
+    executable: /bin/bash
+
+- name: Evaluate Streams Instance
+  k8s:
+    state: present
+    resource_definition: "{{ lookup('template', 'kafka.yaml.j2') }}"
+
+
+- name: Wait Streams to be ready
+  shell: set -o pipefail && oc get pods -l app.kubernetes.io/instance=my-cluster -l strimzi.io/name=my-cluster-kafka -l statefulset.kubernetes.io/pod-name=my-cluster-kafka-0  -n {{ demo_project }} | grep my-cluster-kafka-0
+  register: readiness
+  until: "'1/1' in readiness.stdout"
+  retries: 20
+  delay: 15
+  args:
+    executable: /bin/bash
