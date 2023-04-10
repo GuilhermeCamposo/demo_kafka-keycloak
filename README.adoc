@@ -128,15 +128,15 @@ Listing available topics:
 
 == User federation with LDAP
 
-You can add more users to the groups and roles used in the demo. A LDAP server is provioned during the installation. Check the link:https://hub.docker.com/r/bitnami/openldap/[image documentation, window="_blank"] for information about passwords and default data.
+You can add more users to the groups and roles used in the demo. A LDAP server is provisioned during the installation. Check the link:https://hub.docker.com/r/bitnami/openldap/[image documentation, window="_blank"] for information about passwords and default data.
 
 
-First step is to add a new User Federation LDAP provider. Here is what you should input in the form:
+The first step is to add a new User Federation LDAP provider. Here is what you should input in the form:
 
 image::img/ldap-config.png[]
 
 The password is `adminpassword`.
-Once you are done hit save. Go back to the provider configuration. In the end of the page hit `synchronize all user`.
+Once you are done, hit save. Go back to the provider configuration. In the end of the page, hit `synchronize all user`.
 
 image::img/ldap-sync.png[]
 
