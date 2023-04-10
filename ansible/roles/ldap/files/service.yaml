@@ -2,7 +2,6 @@ kind: Service
 apiVersion: v1
 metadata:
   name: openldap
-  namespace: '{{ demo_project }}'
   labels:
     app: openldap
     app.kubernetes.io/component: openldap
