@@ -33,9 +33,13 @@
   until: r_streams_pod.resources | list | length == 1
 
 - name: Get SSO certificate
-  ansible.builtin.shell: set -o pipefail && echo "Q" | openssl s_client -showcerts -connect {{ sso_host }}:443 2>/dev/null | awk '/BEGIN CERTIFICATE/,/END CERTIFICATE/ { print $0 } ' > /tmp/sso.crt
+  ansible.builtin.shell: |
+     set -o pipefail && echo "Q" | openssl s_client -showcerts -connect {{ sso_host }}:443 2>/dev/null \
+     | awk '/BEGIN CERTIFICATE/,/END CERTIFICATE/ { print $0 } ' > {{ output_dir }}/sso.crt
   retries: 20
   delay: 15
+  register: my_output
+  changed_when: my_output.rc != 0
   args:
     executable: /bin/bash
 

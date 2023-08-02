@@ -87,6 +87,20 @@
   delay: 10
   until: rhsso_admin_token.status in [200, 201, 204]
 
+
+- name: Check if Authz Realm exists
+  ansible.builtin.uri:
+    url: 'https://{{ sso_host }}/auth/realms/kafka-authz'
+    method: GET
+    body_format: json
+    return_content: true
+    validate_certs: false
+    status_code: 200,404
+  register: realm_response
+  retries: 10
+  delay: 10
+  until: rhsso_admin_token.status in [200, 404]
+
 - name: Create Authz Realm
   ansible.builtin.uri:
     url: 'https://{{ sso_host }}/auth/admin/realms'
@@ -99,3 +113,5 @@
     return_content: true
     validate_certs: false
     status_code: 201
+  when:
+    - realm_response.status != 200

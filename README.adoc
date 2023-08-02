@@ -7,9 +7,9 @@ Demonstration on how to configure Kafka authentication and authorization using O
 [options="header"]
 |=======================
 | Product               | Version
-| OpenShift             | 4.9
-| AMQ Streams Operator  | amqstreams.v2.0.1-2
-| RH-SSO Operator       | rhsso-operator.7.5.1-opr-010
+| OpenShift             | 4.13
+| AMQ Streams Operator  | 3.4
+| RH-SSO Operator       | 
 | Quarkus               | 2.7.5.Final
 |=======================
 
@@ -36,11 +36,12 @@ Demonstration on how to configure Kafka authentication and authorization using O
 === Running the playbook
 
 The first step to do the installation is to run the playbook. This playbook is responsible for the AMQ Streams and RH-SSO installation,
-plus the environment configuration required for the applications to work. To run the playbook just declare *token* and *server* as environment variables.
-You may take this from the OpenShift `Copy login command` page.
+plus the environment configuration required for the applications to work. To run the playbook just export *token* and *server* as environment variables.
+You may take these values from the OpenShift `Copy login command` page.
 
     token=REPLACE_ME
     server=REPLACE_ME
+    
     ansible-playbook -e token=${token} -e server=${server} playbook.yml
 
 === Deploying the applications
