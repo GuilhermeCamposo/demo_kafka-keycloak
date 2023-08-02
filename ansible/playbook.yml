@@ -5,22 +5,35 @@
     demo_project: kafka-keycloak
     truststore_password: storepass
     insecure_skip_tls_verify: true
+    verify_tls: false
   tasks:
+    - name: Check Required Parameters
+      ansible.builtin.fail:
+        msg: "This playbook requires 'server' and 'token' to be defined"
+      when:
+        - (server is undefined) or (token is undefined) or (server | length == 0) or (token | length == 0)
+      ignore_errors: false
 
     - name: Define domain
-      set_fact:
-        domain : "{{ server | regex_replace('https://api.') | regex_replace(':6443') }}"
+      ansible.builtin.set_fact:
+        domain: "{{ server | regex_replace('https://api.') | regex_replace(':6443') }}"
+
+    - name: Define route_subdomain
+      ansible.builtin.set_fact:
+        route_subdomain: "apps.{{ domain }}"
 
     - name: Login as super user with token on OpenShift 4
-      command: "oc login --token={{ token }}  --server={{ server }} --insecure-skip-tls-verify={{ insecure_skip_tls_verify }}"
+      ansible.builtin.command: "oc login --token={{ token }}  --server={{ server }} --insecure-skip-tls-verify={{ insecure_skip_tls_verify }}"
       when:
-       - token is defined
-       - server is defined
-      ignore_errors: no
+        - token is defined
+        - server is defined
+      ignore_errors: false
+      register: my_output
+      changed_when: my_output.rc != 0
 
-    - name: Evaluate {{ demo_project }} Namespace
+    - name: Evaluate Namespace {{ demo_project }}
       when: not delete_demo
-      k8s:
+      kubernetes.core.k8s:
         state: present
         kind: Project
         api_version: project.openshift.io/v1
@@ -33,30 +46,30 @@
 
     - name: Evaluate Operator Group
       when: not delete_demo
-      k8s:
+      kubernetes.core.k8s:
         state: present
         api_version: operators.coreos.com/v1
         kind: OperatorGroup
         definition:
           metadata:
             name: '{{ demo_project }}-operatorgroup'
-            namespace: '{{ demo_project}}'
+            namespace: '{{ demo_project }}'
           spec:
             targetNamespaces:
-            - '{{ demo_project }}'
+              - '{{ demo_project }}'
 
     - name: Include SSO role
-      include_role:
+      ansible.builtin.include_role:
         name: sso
 
     - name: Include Kafka role
-      include_role:
+      ansible.builtin.include_role:
         name: kafka
 
-    - name: Include Apps role
-      include_role:
-        name: apps
+    # - name: Include Apps role
+    #   include_role:
+    #     name: apps
 
     - name: Include LDAP role
-      include_role:
+      ansible.builtin.include_role:
         name: ldap

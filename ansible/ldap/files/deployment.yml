@@ -33,6 +33,8 @@ spec:
           terminationMessagePolicy: File
           imagePullPolicy: Always
       restartPolicy: Always
+      serviceAccount: ldap
+      serviceAccountName: ldap
       terminationGracePeriodSeconds: 30
       dnsPolicy: ClusterFirst
       securityContext: {}

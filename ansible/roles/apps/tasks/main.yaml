@@ -1,32 +1,32 @@
 - name: Get Streams certificate
-  shell: set -o pipefail &&  oc extract -n {{ demo_project }} secret/my-cluster-cluster-ca-cert --keys ca.crt --to /tmp/
+  ansible.builtin.shell: set -o pipefail &&  oc extract -n {{ demo_project }} secret/my-cluster-cluster-ca-cert --keys ca.crt --to /tmp/
   retries: 20
   delay: 15
   args:
     executable: /bin/bash
 
 - name: Import Streams certificate to truststore
-  shell: set -o pipefail && keytool -keystore /tmp/truststore.p12 -storetype pkcs12 -alias my-cluster-kafka -storepass {{ truststore_password }} -import -file /tmp/ca.crt -noprompt
+  ansible.builtin.shell: set -o pipefail && keytool -keystore /tmp/truststore.p12 -storetype pkcs12 -alias my-cluster-kafka -storepass {{ truststore_password }} -import -file /tmp/ca.crt -noprompt
   retries: 20
   delay: 15
   args:
     executable: /bin/bash
 
 - name: Import SSO certificate to truststore
-  shell: set -o pipefail && keytool -keystore /tmp/truststore.p12 -storetype pkcs12 -alias sso -storepass {{ truststore_password }} -import -file /tmp/sso.crt -noprompt
+  ansible.builtin.shell: set -o pipefail && keytool -keystore /tmp/truststore.p12 -storetype pkcs12 -alias sso -storepass {{ truststore_password }} -import -file /tmp/sso.crt -noprompt
   retries: 20
   delay: 15
   args:
     executable: /bin/bash
 
 - name: Create certificate secret for apps
-  shell: set -o pipefail && oc create secret generic client-truststore --from-file=/tmp/truststore.p12  -n {{ demo_project }}
+  ansible.builtin.shell: set -o pipefail && oc create secret generic client-truststore --from-file=/tmp/truststore.p12  -n {{ demo_project }}
   retries: 20
   delay: 15
   args:
     executable: /bin/bash
 
 - name: Evaluate App ConfigMap
-  k8s:
+  kubernetes.core.k8s:
     state: present
     resource_definition: "{{ lookup('template', 'app-cm.yaml.j2') }}"    

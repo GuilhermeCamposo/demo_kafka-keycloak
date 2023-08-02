@@ -1,0 +1,29 @@
+- name: Evaluate OpenLDAP SA
+  kubernetes.core.k8s:
+    api_key: '{{ token }}'
+    host: '{{ server }}'
+    validate_certs: '{{ verify_tls }}'
+    state: present
+    namespace: '{{ demo_project }}'
+    resource_definition: "{{ lookup('file', 'sa.yml') }}"
+
+- name: Evaluate OpenLDAP SA SCC
+  kubernetes.core.k8s:
+    api_key: '{{ token }}'
+    host: '{{ server }}'
+    validate_certs: '{{ verify_tls }}'
+    state: present
+    namespace: '{{ demo_project }}'
+    resource_definition: "{{ lookup('template', 'cluster-role-binding.yml.j2') }}"
+
+- name: Evaluate OpenLDAP Manifests
+  kubernetes.core.k8s:
+    api_key: '{{ token }}'
+    host: '{{ server }}'
+    validate_certs: '{{ verify_tls }}'
+    state: present
+    namespace: '{{ demo_project }}'
+    resource_definition: "{{ lookup('file', item) }}"
+  loop:
+    - deployment.yml
+    - service.yml

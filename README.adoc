@@ -6,7 +6,7 @@ Demonstration on how to configure Kafka authentication and authorization using O
 
 [options="header"]
 |=======================
-| Product | Version
+| Product               | Version
 | OpenShift             | 4.9
 | AMQ Streams Operator  | amqstreams.v2.0.1-2
 | RH-SSO Operator       | rhsso-operator.7.5.1-opr-010
