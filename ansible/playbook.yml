@@ -70,7 +70,7 @@
     - name: Create output_dir
       ansible.builtin.file:
         path: "{{ output_dir }}"
-        state: directory          
+        state: directory
 
     - name: Include SSO role
       ansible.builtin.include_role:

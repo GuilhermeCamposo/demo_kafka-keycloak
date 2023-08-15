@@ -55,7 +55,7 @@
     api_version: v1
 
 - name: Create SSO secret for Kafka
-  ansible.builtin.shell: set -o pipefail && oc create secret generic oauth-server-cert --from-file=/tmp/sso.crt -n {{ demo_project }}
+  ansible.builtin.shell: set -o pipefail && oc create secret generic oauth-server-cert --from-file={{ output_dir }}/sso.crt -n {{ demo_project }}
   args:
     executable: /bin/bash
   retries: 20
