@@ -46,7 +46,7 @@ You may take these values from the OpenShift `Copy login command` page.
 
 === Deploying the applications
 
-After the environment configuration with the playbook, you may install the applications, `processor` and `producer` using the following maven command:
+After the environment configuration with the playbook, you may install the applications, `processor` and `producer`, using the following maven command:
 
     oc project kafka-keycloak
     mvn clean package -Dquarkus.kubernetes.deploy=true
@@ -77,12 +77,17 @@ In the second one, you may send multiple requests like this:
 
 on the kafka-client terminal:
 
+    # set environment variables
     SSO_HOST=REPLACE_ME
     SSO_HOST_PORT=$SSO_HOST:443
     STOREPASS=storepass
     KAFKA_HOST_PORT=my-cluster-kafka-bootstrap:9093
+
+    # add sso cert to truststore
     echo "Q" | openssl s_client -showcerts -connect $SSO_HOST_PORT 2>/dev/null | awk '/BEGIN CERTIFICATE/,/END CERTIFICATE/ { print $0 } ' > /tmp/sso.crt
     keytool -keystore /tmp/truststore.p12 -storetype pkcs12 -alias sso -storepass $STOREPASS -import -file /tmp/sso.crt -noprompt
+
+    # add kafka cert to truststore
     echo "Q" | openssl s_client -showcerts -connect $KAFKA_HOST_PORT 2>/dev/null | awk '/BEGIN CERTIFICATE/,/END CERTIFICATE/ { print $0 } ' > /tmp/my-cluster-kafka.crt
     keytool -keystore /tmp/truststore.p12 -storetype pkcs12 -alias my-cluster-kafka -storepass $STOREPASS -import -file /tmp/my-cluster-kafka.crt -noprompt
 

@@ -1,0 +1,15 @@
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  labels:
+    app.kubernetes.io/instance: kafka-ui
+    app.kubernetes.io/name: kafka-ui
+  name: kafka-ui
+spec:
+  port:
+    targetPort: http
+  to:
+    kind: Service
+    name: kafka-ui
+    weight: 100
+  wildcardPolicy: None

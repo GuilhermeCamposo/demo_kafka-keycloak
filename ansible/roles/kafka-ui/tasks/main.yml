@@ -1,0 +1,29 @@
+- name: Evaluate kafka-ui ConfigMap
+  kubernetes.core.k8s:
+    api_key: '{{ token }}'
+    host: '{{ server }}'
+    validate_certs: '{{ verify_tls }}'
+    namespace: '{{ demo_project }}'
+    state: present
+    resource_definition: "{{ lookup('template', 'kafka-ui-cm_oauth.yml.j2') }}"
+  register: _kafka
+  retries: 10
+  delay: 10
+  until: not _kafka.failed
+
+- name: Evaluate kafka-ui Manifests
+  kubernetes.core.k8s:
+    api_key: '{{ token }}'
+    host: '{{ server }}'
+    validate_certs: '{{ verify_tls }}'
+    namespace: '{{ demo_project }}'
+    state: present
+    resource_definition: "{{ lookup('file', item) }}"
+  register: _kafka
+  retries: 1
+  delay: 10
+  until: not _kafka.failed
+  loop:
+    - deploy.yml
+    - svc.yml
+    - route.yml

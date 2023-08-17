@@ -87,3 +87,8 @@
     - name: Include LDAP role
       ansible.builtin.include_role:
         name: ldap
+
+# not working with OAuth
+#     - name: Include kafka-ui role
+#       ansible.builtin.include_role:
+#         name: kafka-ui

@@ -1,0 +1,24 @@
+kind: ConfigMap
+apiVersion: v1
+metadata:
+  name: kafka-ui-config
+  immutable: false
+data:
+  config.yml: |-
+    kafka:
+      clusters:
+        - name: my-cluster
+          bootstrapServers: my-cluster-kafka-bootstrap.{{ demo_project }}.svc.cluster.local:9093
+          properties:
+            security.protocol: SASL_SSL
+            sasl.mechanism: OAUTHBEARER        
+            sasl.jaas.config: org.apache.kafka.common.security.oauthbearer.OAuthBearerLoginModule required oauth.client.id="team-a-client" oauth.client.secret="team-a-client-secret"  oauth.ssl.truststore.location="/tmp/truststore.p12" oauth.ssl.truststore.password="{{ truststore_password }}" oauth.ssl.truststore.type="PKCS12" oauth.token.endpoint.uri="https://{{ sso_host }}/auth/realms/kafka-authz/protocol/openid-connect/token"
+            ssl.truststore.location: /tmp/certificates/truststore.p12
+            ssl.truststore.password: {{ truststore_password }}
+    auth:
+      type: disabled
+    management:
+      health:
+        ldap:
+          enabled: false
+

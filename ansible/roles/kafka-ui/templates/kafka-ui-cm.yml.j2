@@ -1,0 +1,17 @@
+kind: ConfigMap
+apiVersion: v1
+metadata:
+  name: kafka-ui-config
+  immutable: false
+data:
+  config.yml: |-
+    kafka:
+      clusters:
+        - name: my-cluster
+          bootstrapServers: my-cluster-kafka-bootstrap.{{ cluster_project }}.svc.cluster.local:9092
+    auth:
+      type: disabled
+    management:
+      health:
+        ldap:
+          enabled: false
