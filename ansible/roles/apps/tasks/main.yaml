@@ -1,6 +1,5 @@
 - name: Get Streams certificate
-  ansible.builtin.shell: |
-     set -o pipefail &&  oc extract -n {{ demo_project }} secret/my-cluster-cluster-ca-cert --keys ca.crt --to {{ output_dir }}/
+  ansible.builtin.shell: oc extract -n {{ demo_project }} secret/my-cluster-cluster-ca-cert --keys ca.crt --to {{ output_dir }}/
   retries: 20
   delay: 15
   register: my_output
@@ -10,7 +9,7 @@
 
 - name: Import Streams certificate to truststore
   ansible.builtin.shell: |
-    set -o pipefail && keytool -keystore {{ output_dir }}/truststore.p12 -storetype pkcs12 -alias my-cluster-kafka \
+    keytool -keystore {{ output_dir }}/truststore.p12 -storetype pkcs12 -alias my-cluster-kafka \
     -storepass {{ truststore_password }} -import -file {{ output_dir }}/ca.crt -noprompt
   retries: 20
   delay: 15
@@ -21,8 +20,8 @@
 
 - name: Import SSO certificate to truststore
   ansible.builtin.shell: |
-      set -o pipefail && keytool -keystore {{ output_dir }}/truststore.p12 -storetype pkcs12 \
-      -alias sso -storepass {{ truststore_password }} -import -file {{ output_dir }}/sso.crt -noprompt
+       keytool -keystore {{ output_dir }}/truststore.p12 -storetype pkcs12 \
+       -alias sso -storepass {{ truststore_password }} -import -file {{ output_dir }}/sso.crt -noprompt
   retries: 20
   delay: 15
   register: my_output
@@ -42,7 +41,7 @@
     api_version: v1
 
 - name: Create certificate secret for apps
-  ansible.builtin.shell: set -o pipefail && oc create secret generic client-truststore --from-file={{ output_dir }}/truststore.p12  -n {{ demo_project }}
+  ansible.builtin.shell: oc create secret generic client-truststore --from-file={{ output_dir }}/truststore.p12  -n {{ demo_project }}
   retries: 20
   delay: 15
   register: my_output

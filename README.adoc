@@ -39,17 +39,21 @@ The first step to do the installation is to run the playbook. This playbook is r
 plus the environment configuration required for the applications to work. To run the playbook just export *token* and *server* as environment variables.
 You may take these values from the OpenShift `Copy login command` page.
 
-    token=REPLACE_ME
-    server=REPLACE_ME
-    
-    ansible-playbook -e token=${token} -e server=${server} playbook.yml
+----
+token=REPLACE_ME
+server=REPLACE_ME
+
+ansible-playbook -e token=${token} -e server=${server} playbook.yml
+----
 
 === Deploying the applications
 
 After the environment configuration with the playbook, you may install the applications, `processor` and `producer`, using the following maven command:
 
-    oc project kafka-keycloak
-    mvn clean package -Dquarkus.kubernetes.deploy=true
+----
+oc project kafka-keycloak
+mvn clean package -Dquarkus.kubernetes.deploy=true
+----    
 
 == Testing the applications
 
@@ -58,67 +62,87 @@ call in the same API. The `processor` app will take those requests in the backgr
 
 To demonstrate this, open two terminal. In the first one, add the streamed responses:
 
-    export ROUTE=$(oc get route kafka-producer -o jsonpath='{.spec.host}' -n kafka-keycloak)
-    curl http://$ROUTE/quotes
+----
+export ROUTE=$(oc get route kafka-producer -o jsonpath='{.spec.host}' -n kafka-keycloak)
+curl http://$ROUTE/quotes
+----
 
 In the second one, you may send multiple requests like this:
 
-    export ROUTE=$(oc get route kafka-producer -o jsonpath='{.spec.host}' -n kafka-keycloak)
-    curl -X POST http://$ROUTE/quotes/request
+----
+export ROUTE=$(oc get route kafka-producer -o jsonpath='{.spec.host}' -n kafka-keycloak)
+curl -X POST http://$ROUTE/quotes/request
+----
 
 == Testing user logon with admin tasks
 
 === Run kafka client on your terminal
 
-  oc run -ti --restart=Never --image=registry.redhat.io/amq7/amq-streams-kafka-30-rhel8:2.0.1 kafka-client -n kafka-keycloak -- /bin/sh
-
+----
+oc run -ti --restart=Never --image=registry.redhat.io/amq7/amq-streams-kafka-30-rhel8:2.0.1 kafka-client -n kafka-keycloak -- /bin/sh
+----
 
 === Set the certificates
 
-on the kafka-client terminal:
+on your workstation terminal:
 
-    # set environment variables
-    SSO_HOST=REPLACE_ME
-    SSO_HOST_PORT=$SSO_HOST:443
-    STOREPASS=storepass
-    KAFKA_HOST_PORT=my-cluster-kafka-bootstrap:9093
+----
+PROJECT=kafka-keycloak
+CLUSTER=my-cluster
+OUTPUT_DIR=/tmp/kafka-keycloak-manual
+TRUSTSTORE_PASSWORD=storepass
+SSO_HOST=
+SSO_HOST_PORT=$SSO_HOST:443
 
-    # add sso cert to truststore
-    echo "Q" | openssl s_client -showcerts -connect $SSO_HOST_PORT 2>/dev/null | awk '/BEGIN CERTIFICATE/,/END CERTIFICATE/ { print $0 } ' > /tmp/sso.crt
-    keytool -keystore /tmp/truststore.p12 -storetype pkcs12 -alias sso -storepass $STOREPASS -import -file /tmp/sso.crt -noprompt
+# Extract and add Kafka CA to truststore 
+oc extract -n $PROJECT secret/$CLUSTER-cluster-ca-cert --keys ca.crt --to $OUTPUT_DIR/
+keytool -keystore $OUTPUT_DIR/truststore.p12 -storetype pkcs12 -alias my-cluster-kafka -storepass $TRUSTSTORE_PASSWORD -import -file $OUTPUT_DIR/ca.crt -noprompt
 
-    # add kafka cert to truststore
-    echo "Q" | openssl s_client -showcerts -connect $KAFKA_HOST_PORT 2>/dev/null | awk '/BEGIN CERTIFICATE/,/END CERTIFICATE/ { print $0 } ' > /tmp/my-cluster-kafka.crt
-    keytool -keystore /tmp/truststore.p12 -storetype pkcs12 -alias my-cluster-kafka -storepass $STOREPASS -import -file /tmp/my-cluster-kafka.crt -noprompt
+# Extract and add Keycloak CA to truststore
+echo "Q" | openssl s_client -showcerts -connect $SSO_HOST_PORT 2>/dev/null | awk '/BEGIN CERTIFICATE/,/END CERTIFICATE/ { print $0 } ' > $OUTPUT_DIR/sso.crt
+keytool -keystore $OUTPUT_DIR/truststore.p12 -storetype pkcs12 -alias sso -storepass $TRUSTSTORE_PASSWORD  -import -file $OUTPUT_DIR/sso.crt -noprompt
+
+oc rsync $OUTPUT_DIR/ kafka-client:/tmp
+
+----
 
 === Get a token
 
 You need to authenticate on Keycloak before trying to access Kafka.
 
-    USERNAME=alice
-    PASSWORD=alice-password
-    GRANT_RESPONSE=$(curl -X POST "https://$SSO_HOST/auth/realms/kafka-authz/protocol/openid-connect/token" -H 'Content-Type: application/x-www-form-urlencoded' -d "grant_type=password&username=$USERNAME&password=$PASSWORD&client_id=kafka-cli&scope=offline_access" -s -k)
-    REFRESH_TOKEN=$(echo $GRANT_RESPONSE | awk -F "refresh_token\":\"" '{printf $2}' | awk -F "\"" '{printf $1}')
+----
+SSO_HOST=
+SSO_HOST_PORT=$SSO_HOST:443
+USERNAME=alice
+PASSWORD=alice-password
+STOREPASS=storepass
+
+
+GRANT_RESPONSE=$(curl -X POST "https://$SSO_HOST/auth/realms/kafka-authz/protocol/openid-connect/token" -H 'Content-Type: application/x-www-form-urlencoded' -d "grant_type=password&username=$USERNAME&password=$PASSWORD&client_id=kafka-cli&scope=offline_access" -s -k)
+REFRESH_TOKEN=$(echo $GRANT_RESPONSE | awk -F "refresh_token\":\"" '{printf $2}' | awk -F "\"" '{printf $1}')
+----
 
 === Set the access properties
 
 Create the file with all the information required to access Kafka.
 
-    cat > /tmp/alice.properties << EOF
-    security.protocol=SASL_SSL
-    ssl.truststore.location=/tmp/truststore.p12
-    ssl.truststore.password=$STOREPASS
-    ssl.truststore.type=PKCS12
-    sasl.mechanism=OAUTHBEARER
-    sasl.jaas.config=org.apache.kafka.common.security.oauthbearer.OAuthBearerLoginModule required \
-    oauth.refresh.token="$REFRESH_TOKEN" \
-    oauth.client.id="kafka-cli" \
-    oauth.ssl.truststore.location="/tmp/truststore.p12" \
-    oauth.ssl.truststore.password="$STOREPASS" \
-    oauth.ssl.truststore.type="PKCS12" \
-    oauth.token.endpoint.uri="https://$SSO_HOST/auth/realms/kafka-authz/protocol/openid-connect/token" ;
-    sasl.login.callback.handler.class=io.strimzi.kafka.oauth.client.JaasClientOauthLoginCallbackHandler
-    EOF
+----
+cat > /tmp/alice.properties << EOF
+security.protocol=SASL_SSL
+ssl.truststore.location=/tmp/truststore.p12
+ssl.truststore.password=$STOREPASS
+ssl.truststore.type=PKCS12
+sasl.mechanism=OAUTHBEARER
+sasl.jaas.config=org.apache.kafka.common.security.oauthbearer.OAuthBearerLoginModule required \
+oauth.refresh.token="$REFRESH_TOKEN" \
+oauth.client.id="kafka-cli" \
+oauth.ssl.truststore.location="/tmp/truststore.p12" \
+oauth.ssl.truststore.password="$STOREPASS" \
+oauth.ssl.truststore.type="PKCS12" \
+oauth.token.endpoint.uri="https://$SSO_HOST/auth/realms/kafka-authz/protocol/openid-connect/token" ;
+sasl.login.callback.handler.class=io.strimzi.kafka.oauth.client.JaasClientOauthLoginCallbackHandler
+EOF
+----
 
 === Testing your access
 
@@ -126,11 +150,15 @@ Once you have your properties file set, you may test your permission in the foll
 
 Creating a topic:
 
-      bin/kafka-topics.sh --bootstrap-server my-cluster-kafka-bootstrap:9093 --command-config /tmp/alice.properties --topic x_messages --create --replication-factor 1 --partitions 1
+----
+bin/kafka-topics.sh --bootstrap-server my-cluster-kafka-bootstrap:9093 --command-config /tmp/alice.properties --topic x_messages --create --replication-factor 1 --partitions 1
+----
 
 Listing available topics:
 
-      bin/kafka-topics.sh --bootstrap-server my-cluster-kafka-bootstrap:9093 --command-config /tmp/alice.properties --list
+----
+bin/kafka-topics.sh --bootstrap-server my-cluster-kafka-bootstrap:9093 --command-config /tmp/alice.properties --list
+----
 
 == User federation with LDAP
 
@@ -149,3 +177,9 @@ image::img/ldap-sync.png[]
 Expect two users to be imported.
 
 You will be able to authenticate with those users but remember to add them to `Groups` or `Roles` so they can have access to Kafka resources.
+
+== trouble shooting 
+
+----
+keytool -list -keystore /tmp/truststore.p12 -storepass ${STOREPASS}
+----

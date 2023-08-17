@@ -21,6 +21,19 @@ spec:
           tlsTrustedCertificates:
             - secretName: oauth-server-cert
               certificate: sso.crt
+      # - name: external
+      #   port: 9093
+      #   type: route
+      #   tls: true
+      #   authentication:
+      #     type: oauth
+      #     validIssuerUri: https://{{ sso_host }}/auth/realms/kafka-authz
+      #     jwksEndpointUri: https://{{ sso_host }}/auth/realms/kafka-authz/protocol/openid-connect/certs
+      #     userNameClaim: preferred_username
+      #     maxSecondsWithoutReauthentication: 3600
+      #     tlsTrustedCertificates:
+      #       - secretName: oauth-server-cert
+      #         certificate: sso.crt
     authorization:
       type: keycloak
       clientId: kafka
@@ -43,6 +56,8 @@ spec:
       transaction.state.log.min.isr: 1
       log.message.format.version: "3.4"
       inter.broker.protocol.version: "3.4"
+      # default.replication.factor: 3
+      # min.insync.replicas: 2
     storage:
       type: ephemeral
   zookeeper:
