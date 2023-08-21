@@ -20,7 +20,7 @@ Demonstration on how to configure Kafka authentication and authorization using O
 * Java 11 JDK
 * Ansible >= 2.9
 * Python module for kubernetes and openshift
-* oc client
+* oc Client
 
 == Installing The Demo Using Ansible
 
@@ -64,6 +64,7 @@ To demonstrate this, open two terminal. In the first one, add the streamed respo
 
 ----
 export ROUTE=$(oc get route kafka-producer -o jsonpath='{.spec.host}' -n kafka-keycloak)
+
 curl http://$ROUTE/quotes
 ----
 
@@ -71,6 +72,7 @@ In the second one, you may send multiple requests like this:
 
 ----
 export ROUTE=$(oc get route kafka-producer -o jsonpath='{.spec.host}' -n kafka-keycloak)
+
 curl -X POST http://$ROUTE/quotes/request
 ----
 
@@ -96,10 +98,12 @@ SSO_HOST_PORT=$SSO_HOST:443
 
 # Extract and add Kafka CA to truststore 
 oc extract -n $PROJECT secret/$CLUSTER-cluster-ca-cert --keys ca.crt --to $OUTPUT_DIR/
+
 keytool -keystore $OUTPUT_DIR/truststore.p12 -storetype pkcs12 -alias my-cluster-kafka -storepass $TRUSTSTORE_PASSWORD -import -file $OUTPUT_DIR/ca.crt -noprompt
 
 # Extract and add Keycloak CA to truststore
 echo "Q" | openssl s_client -showcerts -connect $SSO_HOST_PORT 2>/dev/null | awk '/BEGIN CERTIFICATE/,/END CERTIFICATE/ { print $0 } ' > $OUTPUT_DIR/sso.crt
+
 keytool -keystore $OUTPUT_DIR/truststore.p12 -storetype pkcs12 -alias sso -storepass $TRUSTSTORE_PASSWORD  -import -file $OUTPUT_DIR/sso.crt -noprompt
 
 oc rsync $OUTPUT_DIR/ kafka-client:/tmp
@@ -119,6 +123,7 @@ STOREPASS=storepass
 
 
 GRANT_RESPONSE=$(curl -X POST "https://$SSO_HOST/auth/realms/kafka-authz/protocol/openid-connect/token" -H 'Content-Type: application/x-www-form-urlencoded' -d "grant_type=password&username=$USERNAME&password=$PASSWORD&client_id=kafka-cli&scope=offline_access" -s -k)
+
 REFRESH_TOKEN=$(echo $GRANT_RESPONSE | awk -F "refresh_token\":\"" '{printf $2}' | awk -F "\"" '{printf $1}')
 ----
 
