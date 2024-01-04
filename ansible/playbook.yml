@@ -6,6 +6,7 @@
     truststore_password: storepass
     insecure_skip_tls_verify: true
     verify_tls: false
+    kafka_sso_realm: kafka-authz
   tasks:
     - name: Check Required Parameters
       ansible.builtin.fail:

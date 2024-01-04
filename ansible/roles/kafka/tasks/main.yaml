@@ -65,6 +65,9 @@
 
 - name: Evaluate Streams Instance
   kubernetes.core.k8s:
+    api_key: '{{ token }}'
+    host: '{{ server }}'
+    validate_certs: false
     state: present
     resource_definition: "{{ lookup('template', 'kafka.yaml.j2') }}"
 
@@ -83,3 +86,21 @@
   retries: 10
   delay: 10
   until: r_streams_pod.resources | list | length == 1
+
+- name: Evaluate Keycloak Client Secret
+  kubernetes.core.k8s:
+    api_key: '{{ token }}'
+    host: '{{ server }}'
+    validate_certs: false
+    state: present
+    namespace: '{{ demo_project }}'
+    resource_definition: "{{ lookup('file', 'sso-client-secret.yml') }}"
+
+- name: Evaluate Kafka Bridge
+  kubernetes.core.k8s:
+    api_key: '{{ token }}'
+    host: '{{ server }}'
+    validate_certs: false
+    state: present
+    namespace: '{{ demo_project }}'
+    resource_definition: "{{ lookup('template', 'bridge.yml.j2') }}"
