@@ -1,0 +1,196 @@
+- name: Add Red Hat build of keycloak-operator Subscription
+  kubernetes.core.k8s:
+    state: present
+    kind: Subscription
+    api_version: operators.coreos.com/v1alpha1
+    definition:
+      metadata:
+        name: rhbk-operator
+        namespace: '{{ demo_project }}'
+      spec:
+        channel: stable-v26
+        installPlanApproval: Automatic
+        name: rhbk-operator
+        source: redhat-operators
+        sourceNamespace: openshift-marketplace
+
+- name: Wait for keycloak-operator to install
+  kubernetes.core.k8s_info:
+    validate_certs: '{{ verify_tls }}'
+    api_version: apiextensions.k8s.io/v1
+    kind: CustomResourceDefinition
+    name: keycloaks.k8s.keycloak.org
+  register: crd_keycloak
+  until: crd_keycloak.resources | list | length == 1
+  retries: 10
+  delay: 30
+
+- name: Install Ephemeral PostgreSQL for use by Keycloak
+  kubernetes.core.k8s:
+    state: present
+    kind: StatefulSet
+    api_version: apps/v1
+    definition:
+      metadata:
+        name: postgresql-db
+        namespace: '{{ demo_project }}'
+      spec:
+        serviceName: postgresql-db-service
+        selector:
+          matchLabels:
+            app: postgresql-db
+        replicas: 1
+        template:
+          metadata:
+            labels:
+              app: postgresql-db
+          spec:
+            containers:
+              - name: postgresql-db
+                image: mirror.gcr.io/library/postgres:16
+                volumeMounts:
+                  - mountPath: /data
+                    name: cache-volume
+                env:
+                  - name: POSTGRES_USER
+                    value: testuser
+                  - name: POSTGRES_PASSWORD
+                    value: testpassword
+                  - name: PGDATA
+                    value: /data/pgdata
+                  - name: POSTGRES_DB
+                    value: keycloak
+            volumes:
+              - name: cache-volume
+                emptyDir: {}
+
+- name: Expose PostgreSQL Service
+  kubernetes.core.k8s:
+    state: present
+    kind: Service
+    api_version: v1
+    definition:
+      metadata:
+        name: postgresql-db
+        namespace: '{{ demo_project }}'
+      spec:
+        selector:
+          app: postgresql-db
+        type: ClusterIP
+        ports:
+        - port: 5432
+          targetPort: 5432
+
+- name: Create the Secret to store the Keycloak admin user and password
+  ansible.builtin.command: "kubectl -n {{ demo_project }} create secret generic keycloak-server-admin --from-literal=username={{ rhkc_admin_username }} --from-literal=password={{ rhkc_admin_password }}"
+  ignore_errors: true
+
+- name: Create the Secret to store the PostgreSQL credentials
+  ansible.builtin.command: "kubectl -n {{ demo_project }} create secret generic keycloak-db-secret --from-literal=username=testuser --from-literal=password=testpassword"
+  ignore_errors: true
+
+# keycloak requires a certificate for TLS setup
+- name: Create the certificate and private key for HTTPS endpoint
+  ansible.builtin.command: "openssl req -subj '/CN=my-kc.{{ route_subdomain }}/O=Test Keycloak./C=US' -newkey rsa:2048 -nodes -keyout {{ output_dir }}/kc-key.pem -x509 -days 365 -out {{ output_dir }}/kc-certificate.pem"
+  ignore_errors: false
+
+- name: Create the Secret to store the HTTPS TLS certificate
+  ansible.builtin.command: "kubectl -n {{ demo_project }} create secret tls keycloak-tls --cert {{ output_dir }}/kc-certificate.pem --key {{ output_dir }}/kc-key.pem"
+  ignore_errors: true
+
+- name: Deploy RH Keycloak-server
+  kubernetes.core.k8s:
+    state: present
+    kind: Keycloak
+    api_version: k8s.keycloak.org/v2alpha1
+    definition:
+      metadata:
+        name: keycloak-server
+        namespace: '{{ demo_project }}'
+      spec:
+        bootstrapAdmin:
+          user:
+            secret: keycloak-server-admin
+        hostname:
+          hostname: my-kc.{{ route_subdomain }}
+        http:
+            tlsSecret: keycloak-tls
+        instances: 1
+        resources:
+          requests:
+            cpu: 1200m
+            memory: 896Mi
+          limits:
+            cpu: 3
+            memory: 1500Mi
+        db:
+          vendor: postgres
+          host: postgresql-db
+          usernameSecret:
+            name: keycloak-db-secret
+            key: username
+          passwordSecret:
+            name: keycloak-db-secret
+            key: password
+
+- name: Wait for Keycloak to be running
+  ansible.builtin.uri:
+    url: https://my-kc.{{ route_subdomain }}
+    follow_redirects: "all"
+    ca_path: "{{ output_dir }}/kc-certificate.pem"
+    return_content: true
+    status_code: '200'
+  register: result
+  until: result.status == 200
+  retries: 30
+  delay: 10
+
+- name: Set keycloak-server host
+  ansible.builtin.set_fact:
+    kc_host: 'my-kc.{{ route_subdomain }}'
+
+- name: Get Keycloak admin token
+  ansible.builtin.uri:
+    url: 'https://{{ kc_host }}/realms/master/protocol/openid-connect/token'
+    validate_certs: false
+    method: POST
+    body:
+      username: "{{ rhkc_admin_username }}"
+      password: "{{ rhkc_admin_password }}"
+      grant_type: "password"
+      client_id: "admin-cli"
+    body_format: form-urlencoded
+    status_code: 200,201,204
+  register: rhkc_admin_token
+  retries: 10
+  delay: 10
+  until: rhkc_admin_token.status in [200, 201, 204]
+
+
+- name: Check if Authz Realm exists
+  ansible.builtin.uri:
+    url: 'https://{{ kc_host }}/realms/kafka-authz'
+    method: GET
+    body_format: json
+    return_content: true
+    validate_certs: false
+    status_code: 200,404
+  register: realm_response
+  retries: 10
+  delay: 10
+  until: rhkc_admin_token.status in [200, 404]
+
+- name: Create Authz Realm
+  ansible.builtin.uri:
+    url: 'https://{{ kc_host }}/admin/realms'
+    method: POST
+    body_format: json
+    headers:
+      Content-Type: "application/json"
+      Authorization: "Bearer {{ rhkc_admin_token.json.access_token }}"
+    body: "{{ lookup('file', 'kafka-authz-realm.json') }}"
+    return_content: true
+    validate_certs: false
+    status_code: 201
+  when:
+    - realm_response.status != 200

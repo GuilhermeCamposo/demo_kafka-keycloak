@@ -18,10 +18,10 @@
   args:
     executable: /bin/bash
 
-- name: Import SSO certificate to truststore
+- name: Import Keycloak certificate to truststore
   ansible.builtin.shell: |
        keytool -keystore {{ output_dir }}/truststore.p12 -storetype pkcs12 \
-       -alias sso -storepass {{ truststore_password }} -import -file {{ output_dir }}/sso.crt -noprompt
+       -alias kc -storepass {{ truststore_password }} -import -file {{ output_dir }}/kc.crt -noprompt
   retries: 20
   delay: 15
   register: my_output

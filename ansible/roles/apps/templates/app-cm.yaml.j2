@@ -4,4 +4,4 @@ metadata:
   name: jaas-config
   namespace: '{{ demo_project }}'
 data:
-  JAASCONFIG: org.apache.kafka.common.security.oauthbearer.OAuthBearerLoginModule required oauth.client.id="team-a-client" oauth.client.secret="team-a-client-secret"  oauth.ssl.truststore.location="/tmp/truststore.p12" oauth.ssl.truststore.password="{{ truststore_password }}" oauth.ssl.truststore.type="PKCS12" oauth.token.endpoint.uri="https://{{ sso_host }}/auth/realms/kafka-authz/protocol/openid-connect/token";
+  JAASCONFIG: org.apache.kafka.common.security.oauthbearer.OAuthBearerLoginModule required oauth.client.id="team-a-client" oauth.client.secret="team-a-client-secret"  oauth.ssl.truststore.location="/tmp/truststore.p12" oauth.ssl.truststore.password="{{ truststore_password }}" oauth.ssl.truststore.type="PKCS12" oauth.token.endpoint.uri="https://{{ kc_host }}/realms/kafka-authz/protocol/openid-connect/token";
