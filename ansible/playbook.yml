@@ -6,7 +6,9 @@
     truststore_password: storepass
     insecure_skip_tls_verify: true
     verify_tls: false
-    kafka_sso_realm: kafka-authz
+    kafka_keycloak_realm: kafka-authz
+    rhkc_admin_username: test-admin
+    rhkc_admin_password: admin123
   tasks:
     - name: Check Required Parameters
       ansible.builtin.fail:
@@ -73,23 +75,18 @@
         path: "{{ output_dir }}"
         state: directory
 
-    - name: Include SSO role
+    - name: Run Keycloak tasks
       ansible.builtin.include_role:
-        name: sso
+        name: keycloak
 
-    - name: Include Kafka role
+    - name: Run Kafka tasks
       ansible.builtin.include_role:
         name: kafka
 
-    - name: Include Apps role
+    - name: Run Apps tasks
       ansible.builtin.include_role:
         name: apps
 
-    - name: Include LDAP role
+    - name: Run LDAP tasks
       ansible.builtin.include_role:
         name: ldap
-
-# not working with OAuth
-#     - name: Include kafka-ui role
-#       ansible.builtin.include_role:
-#         name: kafka-ui

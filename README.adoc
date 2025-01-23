@@ -7,15 +7,15 @@ Demonstration on how to configure Kafka authentication and authorization using O
 [options="header"]
 |=======================
 | Product               | Version
-| OpenShift             | 4.13
-| AMQ Streams Operator  | 3.4
-| RH-SSO Operator       | 
+| OpenShift             | 4.15+
+| AMQ Streams Operator  | 2.8
+| Keycloak Operator     | 26.0
 | Quarkus               | 2.7.5.Final
 |=======================
 
 == Requirements on your workstation
 
-* Access to an OpenShift 4.9 cluster
+* Access to an OpenShift 4.15+ cluster
 * Maven
 * Java 11 JDK
 * Ansible >= 2.9
@@ -35,7 +35,7 @@ Demonstration on how to configure Kafka authentication and authorization using O
 
 === Running the playbook
 
-The first step to do the installation is to run the playbook. This playbook is responsible for the AMQ Streams and RH-SSO installation,
+The first step to do the installation is to run the playbook. This playbook is responsible for the AMQ Streams and Keycloak installation,
 plus the environment configuration required for the applications to work. To run the playbook just export *token* and *server* as environment variables.
 You may take these values from the OpenShift `Copy login command` page.
 
@@ -46,6 +46,11 @@ server=REPLACE_ME
 ansible-playbook -e token=${token} -e server=${server} playbook.yml
 ----
 
+You can set the `token` and `server` values like this.
+----
+ansible-playbook -e token=`oc whoami -t` -e server=`oc whoami --show-server` ansible/playbook.yml
+----
+
 === Deploying the applications
 
 After the environment configuration with the playbook, you may install the applications, `processor` and `producer`, using the following maven command:
@@ -53,7 +58,7 @@ After the environment configuration with the playbook, you may install the appli
 ----
 oc project kafka-keycloak
 mvn clean package -Dquarkus.kubernetes.deploy=true
-----    
+----
 
 == Testing the applications
 
@@ -96,7 +101,7 @@ TRUSTSTORE_PASSWORD=storepass
 SSO_HOST=
 SSO_HOST_PORT=$SSO_HOST:443
 
-# Extract and add Kafka CA to truststore 
+# Extract and add Kafka CA to truststore
 oc extract -n $PROJECT secret/$CLUSTER-cluster-ca-cert --keys ca.crt --to $OUTPUT_DIR/
 
 keytool -keystore $OUTPUT_DIR/truststore.p12 -storetype pkcs12 -alias my-cluster-kafka -storepass $TRUSTSTORE_PASSWORD -import -file $OUTPUT_DIR/ca.crt -noprompt
@@ -183,8 +188,20 @@ Expect two users to be imported.
 
 You will be able to authenticate with those users but remember to add them to `Groups` or `Roles` so they can have access to Kafka resources.
 
-== trouble shooting 
+== Trouble shooting
+
+* How to make ansible shows additional logging:
+
+Add `-vvv` to show additional logging in case there are errors.
+----
+ansible-playbook -vvv -e token=`oc whoami -t` -e server=`oc whoami --show-server` ansible/playbook.yml
+----
+
+* You can clean up all resources by running the script `delete_k8s_resources.sh`.
+
+* You can show additional logging from the deployed quarkus application by adding the specific logging in `src/main/resources/application.properties`:
 
 ----
-keytool -list -keystore /tmp/truststore.p12 -storepass ${STOREPASS}
+logging.level.org.apache.kafka=DEBUG
+logging.level.io.strimzi=DEBUG
 ----

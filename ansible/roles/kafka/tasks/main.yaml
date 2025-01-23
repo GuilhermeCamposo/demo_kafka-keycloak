@@ -32,10 +32,10 @@
   delay: 10
   until: r_streams_pod.resources | list | length == 1
 
-- name: Get SSO certificate
+- name: Get Keycloak certificate
   ansible.builtin.shell: |
-     set -o pipefail && echo "Q" | openssl s_client -showcerts -connect {{ sso_host }}:443 2>/dev/null \
-     | awk '/BEGIN CERTIFICATE/,/END CERTIFICATE/ { print $0 } ' > {{ output_dir }}/sso.crt
+     set -o pipefail && echo "Q" | openssl s_client -showcerts -connect {{ kc_host }}:443 2>/dev/null \
+     | awk '/BEGIN CERTIFICATE/,/END CERTIFICATE/ { print $0 } ' > {{ output_dir }}/kc.crt
   retries: 20
   delay: 15
   register: my_output
@@ -54,8 +54,8 @@
     namespace: '{{ demo_project }}'
     api_version: v1
 
-- name: Create SSO secret for Kafka
-  ansible.builtin.shell: oc create secret generic oauth-server-cert --from-file={{ output_dir }}/sso.crt -n {{ demo_project }}
+- name: Create Keycloak secret for Kafka
+  ansible.builtin.shell: oc create secret generic oauth-server-cert --from-file={{ output_dir }}/kc.crt -n {{ demo_project }}
   args:
     executable: /bin/bash
   retries: 20
@@ -79,7 +79,7 @@
     api_version: v1
     kind: Pod
     namespace: '{{ demo_project }}'
-    name: my-cluster-kafka-2
+    name: my-cluster-broker-controller-0
     field_selectors:
       - status.phase=Running
   register: r_streams_pod
@@ -94,7 +94,7 @@
     validate_certs: false
     state: present
     namespace: '{{ demo_project }}'
-    resource_definition: "{{ lookup('file', 'sso-client-secret.yml') }}"
+    resource_definition: "{{ lookup('file', 'keycloak-client-secret.yml') }}"
 
 - name: Evaluate Kafka Bridge
   kubernetes.core.k8s:

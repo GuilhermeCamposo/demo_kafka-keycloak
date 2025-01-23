@@ -22,7 +22,7 @@ spec:
     spec:
       containers:
         - name: openldap
-          image: docker.io/bitnami/openldap
+          image: mirror.gcr.io/bitnami/openldap
           ports:
             - containerPort: 1389
               protocol: TCP
